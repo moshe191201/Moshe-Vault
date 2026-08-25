@@ -4,20 +4,20 @@
 Input:  data/domain_terms/translation_seed.csv (columns: term,lang,suggested_en,example_doc,
         surface_variants,corpus_count,log_ratio,... — term/lang/suggested_en/example_doc are primary)
         corpus: raw_md/ (rglob *.md) else raw/ — 2-3 real context sentences per term, not invented.
-Output: data/domain_terms/glossary_proposed.csv
+Output: data/domain_terms/glossary_proposed.json
 
 Config: convert_config.json translation block:
   translation: { base_url, api_key_env, model }
 Env: TRANSLATE_BASE_URL / TRANSLATE_API_KEY or QMD_OPENAI_* fallback.
 Fail-fast if keys missing (no silent fallback).  --mock for CI without LLM.
-Prompt: JSON {term_he, english, keep_source, notes} — keep_source for internal names/part numbers.
-Mock: mixed lang reuses suggested_en; otherwise EN_{term} fixture (notes=mock).
+Prompt: JSON {translations[], keep_source, notes} — keep_source for internal names/part numbers.
+Mock: mixed lang reuses [suggested_en]; otherwise [EN_{term}] fixture (notes=mock).
 
 CLI:
   python scripts/glossary_translate.py [vault_root] [--input PATH] [--out PATH] [--limit N] [--model ID] [--mock]
   vault_root positional (default ".")
   --input PATH  translation_seed.csv path (default vault/data/domain_terms/translation_seed.csv)
-  --out PATH    output glossary_proposed.csv (default vault/data/domain_terms/glossary_proposed.csv)
+  --out PATH    output glossary_proposed.json (default vault/data/domain_terms/glossary_proposed.json)
   --limit N     limit terms (0=all, for smoke tests)
   --model ID    override model id (default translation.model or minimax-m2.7)
   --mock        offline mock (no LLM call, EN_{term} fixture, for CI)
@@ -118,9 +118,9 @@ def _call_llm(base_url: str, api_key: str, model: str, term: str, contexts: list
         f"Term: {term}\n"
         f"Context sentences (real corpus excerpts):\n{ctx_block}\n\n"
         f"Rules:\n"
-        f"- Output ONLY JSON: {{\"english\": string, \"keep_source\": bool, \"notes\": string}}\n"
-        f"- keep_source=true if this is an internal name, part number, org name, or must stay Hebrew.\n"
-        f"- english should be the best English rendering (or empty if keep_source).\n"
+        f"- Output ONLY JSON: {{\"translations\": [string, ...], \"keep_source\": bool, \"notes\": string}}\n"
+        f"- translations: 1-3 valid English renderings, all equally valid — no ranking. If only one rendering exists, return a single-element array.\n"
+        f"- keep_source=true if this is an internal name, part number, org name, or must stay Hebrew (translations should be empty).\n"
         f"- notes: brief rationale or empty.\n"
         f"- Keep person names as-is (do not translate them) — but this glossary is for domain terms, not names.\n"
     )
@@ -155,8 +155,12 @@ def _call_llm(base_url: str, api_key: str, model: str, term: str, contexts: list
         if not content:
             content = data["choices"][0]["message"]["content"]
         obj = json.loads(content)
+        raw_trans = obj.get("translations", obj.get("english", ""))
+        if isinstance(raw_trans, str):
+            raw_trans = [raw_trans] if raw_trans.strip() else []
+        translations = [str(o).strip() for o in (raw_trans if isinstance(raw_trans, list) else []) if str(o).strip()]
         return {
-            "english": str(obj.get("english", "")).strip(),
+            "translations": translations,
             "keep_source": bool(obj.get("keep_source", False)),
             "notes": str(obj.get("notes", "")).strip(),
         }
@@ -166,15 +170,15 @@ def _call_llm(base_url: str, api_key: str, model: str, term: str, contexts: list
 
 def _mock_translate(term: str, lang: str, suggested: str) -> dict:
     if lang == "mixed" and suggested:
-        return {"english": suggested, "keep_source": False, "notes": "mock: mixed→en stem"}
-    return {"english": f"EN_{term}", "keep_source": False, "notes": "mock"}
+        return {"translations": [suggested], "keep_source": False, "notes": "mock: mixed→en stem"}
+    return {"translations": [f"EN_{term}"], "keep_source": False, "notes": "mock"}
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Bulk-propose glossary English via MiniMax M2.7")
     ap.add_argument("vault_root", nargs="?", default=".", help="vault root (has raw/raw_md, convert_config.json)")
     ap.add_argument("--input", dest="input_csv", default=None, help="translation_seed.csv path")
-    ap.add_argument("--out", dest="out_csv", default=None, help="output glossary_proposed.csv")
+    ap.add_argument("--out", dest="out_json", default=None, help="output glossary_proposed.json")
     ap.add_argument("--mock", action="store_true", help="offline mock (no LLM call, for CI)")
     ap.add_argument("--model", default=None, help="override model id")
     ap.add_argument("--limit", type=int, default=0, help="limit terms (0=all, for smoke tests)")
@@ -186,7 +190,6 @@ def main(argv=None):
 
     base_url = os.environ.get("TRANSLATE_BASE_URL") or os.environ.get("QMD_OPENAI_BASE_URL") or tcfg.get("base_url", "")
     api_key = os.environ.get("TRANSLATE_API_KEY") or os.environ.get("QMD_OPENAI_API_KEY") or ""
-    # api_key may be optional for some gateways; base_url is required for non-mock
     model = args.model or tcfg.get("model") or os.environ.get("TRANSLATE_MODEL") or "minimax-m2.7"
 
     input_csv = Path(args.input_csv) if args.input_csv else vault_root / "data" / "domain_terms" / "translation_seed.csv"
@@ -195,13 +198,12 @@ def main(argv=None):
         print("Run: python scripts/extract_domain_terms.py <vault>", file=sys.stderr)
         sys.exit(1)
 
-    out_csv = Path(args.out_csv) if args.out_csv else vault_root / "data" / "domain_terms" / "glossary_proposed.csv"
-    out_csv.parent.mkdir(parents=True, exist_ok=True)
+    out_json = Path(args.out_json) if args.out_json else vault_root / "data" / "domain_terms" / "glossary_proposed.json"
+    out_json.parent.mkdir(parents=True, exist_ok=True)
 
     if not args.mock and not base_url:
         print("ERROR: translation base_url missing. Set TRANSLATE_BASE_URL or QMD_OPENAI_BASE_URL or convert_config.json translation.base_url", file=sys.stderr)
         sys.exit(1)
-    # api_key may be empty for no-auth gateways; call_llm handles it (auth header with empty key is ok)
 
     # Read seed (strip # comment / empty lines like check_glossary)
     seed_rows: list[dict] = []
@@ -209,23 +211,16 @@ def main(argv=None):
     lines = strip_csv_comments(text)
     if not lines:
         print("translation_seed.csv has no rows — nothing to translate (empty corpus or all terms filtered)", file=sys.stderr)
-        out_csv.parent.mkdir(parents=True, exist_ok=True)
-        with open(out_csv, "w", newline="", encoding="utf-8") as f:
-            w = csv.DictWriter(f, fieldnames=["term_he", "english", "keep_source", "notes", "status", "example_doc", "context_snippets", "lang", "model"])
-            w.writeheader()
-        print(f"Wrote header-only glossary to {out_csv}")
+        out_json.write_text(json.dumps([], indent=2, ensure_ascii=False), encoding="utf-8")
+        print(f"Wrote empty glossary to {out_json}")
         sys.exit(0)
     reader = csv.DictReader(lines)
     for row in reader:
         seed_rows.append(row)
     if not seed_rows:
         print("translation_seed.csv has no rows — nothing to translate (empty corpus or all terms filtered)", file=sys.stderr)
-        # Still write header-only output so downstream doesn't break
-        out_csv.parent.mkdir(parents=True, exist_ok=True)
-        with open(out_csv, "w", newline="", encoding="utf-8") as f:
-            w = csv.DictWriter(f, fieldnames=["term_he", "english", "keep_source", "notes", "status", "example_doc", "context_snippets", "lang", "model"])
-            w.writeheader()
-        print(f"Wrote header-only glossary to {out_csv}")
+        out_json.write_text(json.dumps([], indent=2, ensure_ascii=False), encoding="utf-8")
+        print(f"Wrote empty glossary to {out_json}")
         sys.exit(0)
     if args.limit:
         seed_rows = seed_rows[:args.limit]
@@ -259,8 +254,8 @@ def main(argv=None):
             res = _call_llm(base_url, api_key, model, term, contexts)
         out_rows.append({
             "term_he": term,
-            "english": res["english"],
-            "keep_source": "1" if res["keep_source"] else "0",
+            "translations": res["translations"],
+            "keep_source": bool(res["keep_source"]),
             "notes": res["notes"],
             "status": "proposed",
             "example_doc": example_doc,
@@ -269,17 +264,12 @@ def main(argv=None):
             "model": model,
         })
         if not args.mock:
-            print(f"  {term} -> {res['english']!r} keep_source={res['keep_source']}")
+            print(f"  {term} -> {res['translations']!r} keep_source={res['keep_source']}")
 
-    fieldnames = ["term_he", "english", "keep_source", "notes", "status", "example_doc", "context_snippets", "lang", "model"]
-    with open(out_csv, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=fieldnames)
-        w.writeheader()
-        w.writerows(out_rows)
-    print(f"Wrote {len(out_rows)} rows to {out_csv}")
+    out_json.write_text(json.dumps(out_rows, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(f"Wrote {len(out_rows)} rows to {out_json}")
 
-    # Also echo version hash hint
-    h = hashlib.sha256(out_csv.read_bytes()).hexdigest()[:10]
+    h = hashlib.sha256(out_json.read_bytes()).hexdigest()[:10]
     print(f"hash: {h}")
 
 
