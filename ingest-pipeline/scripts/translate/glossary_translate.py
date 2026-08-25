@@ -240,7 +240,11 @@ def main(argv=None):
         print("  no corpus dir found — translating without contexts")
         context_map = {t: [] for t in terms}
 
-    # Call LLM per term
+    # Call LLM per term — validate LLM output before marking proposed
+    try:
+        from .translation_common import _filter_translations as _gloss_filter
+    except ImportError:
+        from translation_common import _filter_translations as _gloss_filter
     out_rows: list[dict] = []
     for row in seed_rows:
         term = row["term"]
@@ -252,11 +256,24 @@ def main(argv=None):
             res = _mock_translate(term, lang, suggested)
         else:
             res = _call_llm(base_url, api_key, model, term, contexts)
+        translations = list(res.get("translations") or [])
+        keep_source = bool(res.get("keep_source"))
+        notes = str(res.get("notes") or "")
+        # Validate: drop invalid stubs (e.g. "in scale (usually ...)", "בנמינה)")
+        # If LLM returned only invalid options, keep empty and flag for human review
+        filtered = _gloss_filter(translations)
+        if not keep_source and translations and not filtered:
+            notes = (notes + " | " if notes else "") + f"LLM returned invalid translations {translations!r} — needs human fix"
+            translations = []
+        elif len(filtered) != len(translations):
+            dropped = [x for x in translations if x not in filtered]
+            notes = (notes + " | " if notes else "") + f"auto-removed invalid {dropped!r}"
+            translations = filtered
         out_rows.append({
             "term_he": term,
-            "translations": res["translations"],
-            "keep_source": bool(res["keep_source"]),
-            "notes": res["notes"],
+            "translations": translations,
+            "keep_source": keep_source,
+            "notes": notes,
             "status": "proposed",
             "example_doc": example_doc,
             "context_snippets": " | ".join(contexts[:2]),
@@ -264,7 +281,7 @@ def main(argv=None):
             "model": model,
         })
         if not args.mock:
-            print(f"  {term} -> {res['translations']!r} keep_source={res['keep_source']}")
+            print(f"  {term} -> {translations!r} keep_source={keep_source}")
 
     out_json.write_text(json.dumps(out_rows, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"Wrote {len(out_rows)} rows to {out_json}")

@@ -59,6 +59,17 @@ jobs:
             python "scripts/$s" --help > /dev/null 2>&1 && echo OK || { echo FAILED; exit 1; }
           done
 
+      - name: Glossary gate — reject invalid approved translations
+        shell: bash
+        run: |
+          set -e
+          if [ -f "data/domain_terms/glossary.json" ]; then
+            echo "Checking data/domain_terms/glossary.json"
+            python scripts/translate/check_glossary.py data/domain_terms/glossary.json
+          else
+            echo "::warning::No data/domain_terms/glossary.json found — skipping gate (csv glossary not gated)"
+          fi
+
   linux:
     name: tests (ubuntu, py3.12) — advisory
     runs-on: ubuntu-latest
