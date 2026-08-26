@@ -80,11 +80,14 @@ def check_glossary(path: Path) -> tuple[bool, list[str]]:
                 try:
                     from .translation_common import _filter_translations as _flt
                 except ImportError:
-                    try:
-                        from translation_common import _filter_translations as _flt
-                    except ImportError:
-                        sys.path.insert(0, str(Path(__file__).parent))
-                        from translation_common import _filter_translations as _flt
+                    if "translate.translation_common" in sys.modules:
+                        _flt = sys.modules["translate.translation_common"]._filter_translations
+                    else:
+                        try:
+                            from translation_common import _filter_translations as _flt
+                        except ImportError:
+                            sys.path.insert(0, str(Path(__file__).parent))
+                            from translation_common import _filter_translations as _flt
                 valid = _flt(trans)
                 if status == "approved" and not valid:
                     errors.append(f"row {i} term={term!r}: approved row has no valid translations after filtering (all options were invalid stubs)")
@@ -101,11 +104,14 @@ def check_glossary(path: Path) -> tuple[bool, list[str]]:
     try:
         from .translation_common import check_glossary_collisions
     except ImportError:
-        try:
-            from translation_common import check_glossary_collisions
-        except ImportError:
-            sys.path.insert(0, str(Path(__file__).parent))
-            from translation_common import check_glossary_collisions
+        if "translate.translation_common" in sys.modules:
+            check_glossary_collisions = sys.modules["translate.translation_common"].check_glossary_collisions
+        else:
+            try:
+                from translation_common import check_glossary_collisions
+            except ImportError:
+                sys.path.insert(0, str(Path(__file__).parent))
+                from translation_common import check_glossary_collisions
     try:
         check_glossary_collisions(rows if isinstance(rows, list) else [])
     except RuntimeError as e:
@@ -123,7 +129,8 @@ def main(argv=None):
         return
     print(f"glossary BLOCKED: {args.glossary}", file=sys.stderr)
     for e in errors:
-        print(f"  - {e}", file=sys.stderr)
+        safe = e.encode("ascii", "backslashreplace").decode()
+        print(f"  - {safe}", file=sys.stderr)
     sys.exit(1)
 
 

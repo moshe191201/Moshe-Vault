@@ -43,10 +43,12 @@ try:
     _USE_SHARED = True
 except ImportError:
     try:
-        from .translation_common import read_csv_lines_skip_comments as _shared_read_csv, strip_frontmatter as _shared_strip_fm
+        from translation_common import read_csv_lines_skip_comments as _shared_read_csv, strip_frontmatter as _shared_strip_fm
         _USE_SHARED = True
     except ImportError:
-        _USE_SHARED = False
+        sys.path.insert(0, str(Path(__file__).parent))
+        from translation_common import read_csv_lines_skip_comments as _shared_read_csv, strip_frontmatter as _shared_strip_fm
+        _USE_SHARED = True
 
 HE_MARKER_RE = re.compile(r"⟦he:[^⟧]+⟧")
 

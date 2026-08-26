@@ -28,7 +28,6 @@ from __future__ import annotations
 
 import argparse
 import csv
-from .translation_common import read_csv_lines_skip_comments, strip_csv_comments
 import hashlib
 import json
 import os
@@ -206,6 +205,17 @@ def main(argv=None):
         sys.exit(1)
 
     # Read seed (strip # comment / empty lines like check_glossary)
+    try:
+        from .translation_common import strip_csv_comments
+    except ImportError:
+        if "translate.translation_common" in sys.modules:
+            strip_csv_comments = sys.modules["translate.translation_common"].strip_csv_comments
+        else:
+            try:
+                from translation_common import strip_csv_comments
+            except ImportError:
+                sys.path.insert(0, str(Path(__file__).parent))
+                from translation_common import strip_csv_comments
     seed_rows: list[dict] = []
     text = input_csv.read_text(encoding="utf-8")
     lines = strip_csv_comments(text)
@@ -244,7 +254,14 @@ def main(argv=None):
     try:
         from .translation_common import _filter_translations as _gloss_filter
     except ImportError:
-        from translation_common import _filter_translations as _gloss_filter
+        if "translate.translation_common" in sys.modules:
+            _gloss_filter = sys.modules["translate.translation_common"]._filter_translations
+        else:
+            try:
+                from translation_common import _filter_translations as _gloss_filter
+            except ImportError:
+                sys.path.insert(0, str(Path(__file__).parent))
+                from translation_common import _filter_translations as _gloss_filter
     out_rows: list[dict] = []
     for row in seed_rows:
         term = row["term"]
