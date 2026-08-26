@@ -281,7 +281,9 @@ def main(argv=None):
             "model": model,
         })
         if not args.mock:
-            print(f"  {term} -> {translations!r} keep_source={keep_source}")
+            # Windows CI uses cp1252 — escape Hebrew for ascii stdout
+            safe_term = term.encode("ascii", "backslashreplace").decode("ascii")
+            print(f"  {safe_term} -> {translations!r} keep_source={keep_source}")
 
     out_json.write_text(json.dumps(out_rows, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"Wrote {len(out_rows)} rows to {out_json}")
