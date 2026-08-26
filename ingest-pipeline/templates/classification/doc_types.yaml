@@ -1,0 +1,242 @@
+# Document types — global default (13), framework-owned, editable.
+# Copy to campaigns/<campaign>/doc_types.yaml overlay to add/hide/constrain.
+# Internal -> he, external -> en defaults are editable hints, not hard guarantees.
+# Hard gates: allowed_original_languages / allowed_extensions prune candidates.
+# Soft hints: typical_languages / typical_sources / ephemeral / ingest_priority enrich prompt/routing.
+version: 1
+doc_types:
+  domain_intro_presentation:
+    definition: "Introductory deck that frames a domain — high-level concepts, scope, and goals."
+    include: ["introductory slides", "domain framing", "overview deck"]
+    exclude: ["detailed procedure", "raw data table"]
+    reading_rule: "Read as framing/orientation, not as normative instruction."
+    ephemeral: false
+    typical_languages: [he]
+    typical_sources: [internal]
+    allowed_original_languages: []
+    allowed_extensions: []
+    ingest_priority: normal
+    examples:
+      - text: "Domain intro: System X overview — goals, scope, key stakeholders and lifecycle."
+        source: "doc_0101.md"
+        covers: "short deck, explicit"
+      - text: "Presentation outline: introduction to the platform, no procedures, high-level architecture only."
+        source: "doc_0102.md"
+        covers: "lexically thin, framing"
+      - text: "Q3 kickoff deck: domain context and objectives for new joiners."
+        source: "doc_0103.md"
+        covers: "onboarding framing"
+
+  spec_standard:
+    definition: "Normative spec or standard — requirements, compliance, or interface definition, read literally."
+    include: ["requirements", "compliance clause", "interface spec"]
+    exclude: ["internal memo", "training Q&A"]
+    reading_rule: "Read literally as normative requirement."
+    ephemeral: false
+    typical_languages: [en]
+    typical_sources: [external]
+    allowed_original_languages: []
+    allowed_extensions: []
+    ingest_priority: normal
+    examples:
+      - text: "Spec v3.2: The system SHALL support X with latency < 100ms. Compliance required."
+        source: "doc_0201.md"
+        covers: "explicit normative"
+      - text: "External standard: interface definition for subsystem Y, versioned and reviewed."
+        source: "doc_0202.md"
+        covers: "external authority"
+
+  official_research_summary:
+    definition: "Synthesized research summary — literature, findings, and implications, rigorous but interpretive."
+    include: ["literature review", "findings synthesis"]
+    exclude: ["raw intermediate numbers", "announcement"]
+    reading_rule: "Read as interpretive synthesis, check provenance."
+    ephemeral: false
+    typical_languages: [he]
+    typical_sources: [internal]
+    allowed_original_languages: []
+    allowed_extensions: []
+    ingest_priority: normal
+    examples:
+      - text: "Research summary: review of 12 studies on X, implications for practice, limitations noted."
+        source: "doc_0301.md"
+        covers: "synthesis"
+
+  logistics:
+    definition: "Coordination/logistics — scheduling, resources, access, or operational notes."
+    include: ["schedule", "room booking", "access request"]
+    exclude: ["research finding", "spec requirement"]
+    reading_rule: "Ephemeral coordination; may be deprioritized for ingest."
+    ephemeral: true
+    typical_languages: [he]
+    typical_sources: [internal]
+    allowed_original_languages: []
+    allowed_extensions: []
+    ingest_priority: low
+    examples:
+      - text: "Logistics: Q3 meeting rooms booked, access cards issued, lunch arranged."
+        source: "doc_0401.md"
+        covers: "explicit logistics"
+
+  announcement:
+    definition: "Broadcast announcement — general, policy, or event notice."
+    include: ["announcement", "notice", "policy update"]
+    exclude: ["detailed procedure", "Q&A"]
+    reading_rule: "Read as point-in-time notice."
+    ephemeral: true
+    typical_languages: [he]
+    typical_sources: [internal]
+    allowed_original_languages: []
+    allowed_extensions: []
+    ingest_priority: low
+    examples:
+      - text: "Announcement: New policy effective 2026-09-01, all staff must complete training by 08-31."
+        source: "doc_0501.md"
+        covers: "policy announcement"
+
+  anomaly_report:
+    definition: "Structured anomaly snapshot — table of anomalies, counts, and status, often xlsx."
+    include: ["anomaly table", "incident counts"]
+    exclude: ["trend narrative", "meeting notes"]
+    reading_rule: "Read table as snapshot; values are point-in-time."
+    ephemeral: false
+    typical_languages: [he]
+    typical_sources: [internal]
+    allowed_original_languages: [he]
+    allowed_extensions: [xlsx, xls, csv]
+    ingest_priority: high
+    examples:
+      - text: "Anomaly report 2026-07: 23 anomalies, breakdown by subsystem, CSV attached."
+        source: "doc_0601.xlsx"
+        covers: "structured table"
+
+  anomaly_drill_down:
+    definition: "Deep-dive on a specific anomaly — root cause, evidence, and follow-up."
+    include: ["root cause", "drill-down", "evidence trace"]
+    exclude: ["high-level anomaly table only"]
+    reading_rule: "Read as investigation, not as snapshot."
+    ephemeral: false
+    typical_languages: [he]
+    typical_sources: [internal]
+    allowed_original_languages: [he]
+    allowed_extensions: []
+    ingest_priority: high
+    examples:
+      - text: "Drill-down: anomaly #42 — trace, logs, hypothesis, next steps."
+        source: "doc_0701.md"
+        covers: "explicit drill-down"
+
+  trend_analysis:
+    definition: "Analytical trend or longitudinal review — evolution over time, comparison across periods."
+    include: ["trend", "over time", "time series"]
+    exclude: ["single-point anomaly table"]
+    reading_rule: "Read as analysis over time."
+    ephemeral: false
+    typical_languages: [he]
+    typical_sources: [internal]
+    allowed_original_languages: [he]
+    allowed_extensions: []
+    ingest_priority: normal
+    examples:
+      - text: "Trend analysis Q1->Q3: drift in metric X, 12% increase, seasonality noted."
+        source: "doc_0801.md"
+        covers: "explicit trend"
+
+  meeting_minutes:
+    definition: "Meeting minutes — attendees, discussion, and decisions; only decisions/action items are durable."
+    include: ["attendees", "decisions", "action items"]
+    exclude: ["checklist without meeting context"]
+    reading_rule: "Only Decisions and Action Items are durable; discussion is context."
+    ephemeral: false
+    typical_languages: [he]
+    typical_sources: [internal]
+    allowed_original_languages: []
+    allowed_extensions: []
+    ingest_priority: normal
+    examples:
+      - text: "Minutes 2026-08-10: attendees, discussion, Decisions: approve X. Action: Y by 08-20."
+        source: "doc_0901.md"
+        covers: "explicit decisions"
+
+  intermediate_results:
+    definition: "Mid-stream provisional results — numbers pending validation or review."
+    include: ["interim", "preliminary", "pending review"]
+    exclude: ["final spec", "approved summary"]
+    reading_rule: "Read as provisional; may be superseded."
+    ephemeral: false
+    typical_languages: [he]
+    typical_sources: [internal]
+    allowed_original_languages: []
+    allowed_extensions: []
+    ingest_priority: normal
+    examples:
+      - text: "Intermediate results T2: provisional findings, subject to validation."
+        source: "doc_1001.md"
+        covers: "provisional"
+
+  official_internal_update:
+    definition: "Authoritative internal memo or status update from leadership or program office."
+    include: ["status update", "internal memo", "program office"]
+    exclude: ["external spec", "training exercise"]
+    reading_rule: "Read as authoritative internal statement."
+    ephemeral: false
+    typical_languages: [he]
+    typical_sources: [internal]
+    allowed_original_languages: []
+    allowed_extensions: []
+    ingest_priority: normal
+    examples:
+      - text: "Internal update: program status, milestones, risks, and next gates."
+        source: "doc_1101.md"
+        covers: "authoritative update"
+
+  task_list:
+    definition: "Checklist or task inventory — tasks, owners, and due dates, structure over prose."
+    include: ["checklist", "tasks", "- [ ]", "owners"]
+    exclude: ["meeting minutes narrative"]
+    reading_rule: "Read as task inventory; structure is the signal."
+    ephemeral: true
+    typical_languages: [he]
+    typical_sources: [internal]
+    allowed_original_languages: []
+    allowed_extensions: [xlsx, csv, md]
+    ingest_priority: low
+    examples:
+      - text: "- [ ] Prepare spec review — @yonik 2026-08-25\n- [x] Translate batch 3"
+        source: "doc_1201.md"
+        covers: "checklist structure"
+
+  onboarding_q_with_answers:
+    definition: "Training/onboarding Q&A where both question and approved answer are present — A is durable canonical answer."
+    include: ["Q: ... A: ...", "approved answer"]
+    exclude: ["Q without answer", "free exposition without Q"]
+    reading_rule: "Read A: as durable canonical answer."
+    ephemeral: false
+    typical_languages: [he]
+    typical_sources: [internal]
+    allowed_original_languages: []
+    allowed_extensions: []
+    ingest_priority: normal
+    examples:
+      - text: "Q: What is the escalation path for anomaly #7? A: Notify program office and file DR-7 within 24h."
+        source: "doc_1301.md"
+        covers: "explicit Q+A"
+      - text: "Q: When is trend analysis required? A: When metric X exceeds threshold for 2 consecutive periods."
+        source: "doc_1302.md"
+        covers: "implicit Q+A"
+
+  onboarding_q_without_answers:
+    definition: "Training/onboarding question without an answer — exercise or assessment prompt, not a claim."
+    include: ["Q:", "exercise", "assessment without answer"]
+    exclude: ["Q with approved A"]
+    reading_rule: "Read as assessment prompt; no answer to ingest as fact."
+    ephemeral: false
+    typical_languages: [he]
+    typical_sources: [internal]
+    allowed_original_languages: []
+    allowed_extensions: []
+    ingest_priority: normal
+    examples:
+      - text: "Q: Describe the trend in metric X and propose next steps. (no answer provided)"
+        source: "doc_1401.md"
+        covers: "Q without A"

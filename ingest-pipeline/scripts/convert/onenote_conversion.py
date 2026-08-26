@@ -43,7 +43,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from convert_to_md import VaultCfg
+    from .convert_to_md import VaultCfg
 else:
     VaultCfg = dict  # type: ignore
 
@@ -139,7 +139,7 @@ def convert_onenote_file(
     cfg = cfg or {}
     # Dispatch helper for attachment conversion - lazy import to avoid cycle
     try:
-        import convert_to_md as _cvt  # type: ignore
+        from . import convert_to_md as _cvt  # type: ignore
         _dispatch = _cvt.dispatch_convert
         _has_dispatch = True
     except ImportError:
@@ -164,7 +164,7 @@ def convert_onenote_file(
 
             # Frontmatter - reuse convert_to_md helpers if available
             try:
-                import convert_to_md as cvt
+                from . import convert_to_md as cvt
                 from datetime import datetime, timezone
 
                 created = None
@@ -214,7 +214,7 @@ def convert_onenote_file(
                             md_att, _, _, _ = _dispatch(src_asset, client, cfg, routing_ext=ext)
                             # Wrap attachment sidecar with frontmatter including attachment_of link to parent page
                             try:
-                                import convert_to_md as _cvt2
+                                from . import convert_to_md as _cvt2
                                 # Try to apply hebrew fix if dictionary available via convert_to_md context
                                 # but skip if not - keep converted text as-is with frontmatter
                                 rel_page = dst.relative_to(out_root).as_posix() if dst else ""

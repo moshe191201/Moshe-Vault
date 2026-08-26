@@ -7,7 +7,7 @@ Scope: `src/second_brain_vault_framework/`. Repo-wide rules are in the root `CLA
 | Module | Holds | Must not |
 |--------|-------|----------|
 | `cli.py` | argparse wiring, one dispatch line per subcommand | contain behavior — no file I/O, no logic |
-| `core.py` | every `cmd_*` implementation, the lint, the manifest/upgrade machinery | import anything outside the stdlib |
+| `core.py` | every `cmd_*` implementation, the lint, the manifest/upgrade machinery | — |
 | `manifest.json` | `owned_paths` + `user_zones` | list content paths (`raw/`, `wiki/`, `index/`) |
 | `payload/` | verbatim files laid into a vault | contain anything generated at build time |
 

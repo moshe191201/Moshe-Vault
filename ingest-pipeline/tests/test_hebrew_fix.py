@@ -13,7 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from hebrew_fix import HebrewDictionary, build_dictionary, fix_text
+from convert.hebrew_fix import HebrewDictionary, build_dictionary, fix_text
 
 
 def make_dict(words=None, phrases=None):

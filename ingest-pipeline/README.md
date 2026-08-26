@@ -12,10 +12,12 @@ raw/ --[3] convert--> raw_md/ --[4] terms--> glossary --[5] translate--> English
 
 | Stage | Entry point | Purpose |
 |---|---|---|
-| 3 | `scripts/convert_to_md.py` | PDF/DOCX/PPTX/HTML/email/VSDX/OneNote → markdown, Hebrew OCR-reversal fix, dedup |
+| 3 | `scripts/convert/convert_to_md.py` | PDF/DOCX/PPTX/HTML/email/VSDX/OneNote → markdown, Hebrew OCR-reversal fix, dedup |
 | 4 | `scripts/extract_domain_terms.py` | deterministic domain-term extraction (wordfreq ratios + YAP roots) |
-| 5 | `scripts/translate.py` | Hebrew→English with deterministic glossary masking + chunk checkpointing |
+| 5 | `scripts/translate/translate.py` | Hebrew→English with deterministic glossary masking + chunk checkpointing |
 | 6 | `scripts/classify/` | subdomain classification against a frozen taxonomy |
+
+Run conversion as `python -m scripts.convert.convert_to_md` or `python scripts/convert/convert_to_md.py` (package mode), and translation as `python -m scripts.translate.translate` or `python scripts/translate/translate.py`.
 
 ## The rule that matters
 
@@ -49,14 +51,20 @@ test that deliberately drives a document to `qa_failed`. It is not a failure.
 ## Layout
 
 ```
-scripts/         stages 3-6
+scripts/
+  convert/       stage 3 — document conversion to markdown (docling, pandoc, hebrew_fix, vsdx, OneNote)
+  translate/     stage 5 — Hebrew→English translation (masking, chunking, QA, checkpointing, LLM)
+  classify/      stage 6 — subdomain classification against a frozen taxonomy
+  extract_domain_terms.py  stage 4
+  hebrew_yap_stemmer.py    shared YAP helper
+  hot_words.py / review_queue.py  shared tooling
 tests/           the suite + fixtures
 templates/
   planning/      campaign questionnaire (assess → filtering → … → success criteria)
   classification/  taxonomy, glossary, policy, Label Studio view
 skills/          vault-classify (not shipped in the framework payload)
 data/            glossary, curated person names, translation policy + prompt
-requirements.txt the dependency surface — build the air-gap bundle from this, on Windows
+requirements.txt single dependency surface for the whole pipeline — build the air-gap bundle from this, on Windows
 ```
 
 State, open work, and gotchas: `../HANDOFF.md`.

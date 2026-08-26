@@ -17,7 +17,7 @@ import pypdfium2 as pdfium
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from docling_convert import DoclingClient, convert, pdf_page_count, split_pdf
+from convert.docling_convert import DoclingClient, convert, pdf_page_count, split_pdf
 
 
 def make_pdf(path: Path, pages: int) -> None:

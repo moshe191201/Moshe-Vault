@@ -18,8 +18,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-import convert_to_md
-from convert_to_md import build_frontmatter, load_config, run, should_skip
+import convert.convert_to_md as convert_to_md
+from convert.convert_to_md import build_frontmatter, load_config, run, should_skip
 
 
 class StubDoclingHandler(BaseHTTPRequestHandler):

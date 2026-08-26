@@ -43,19 +43,32 @@ def main():
     p.add_argument("--store", default="store")
     p.add_argument("--out", default="label_studio_tasks.json")
     p.add_argument("--view-out", default=None, help="rendered view.xml path")
+    p.add_argument("--doctype", action="store_true", help="export for doc-type")
+    p.add_argument("--singleton-audit", action="store_true", help="export singleton audit view")
     args = p.parse_args()
 
     camp = Path(args.campaign)
-    tax_path = camp / "taxonomy.yaml"
-    if not tax_path.exists():
-        tax_path = _templates_root() / "taxonomy.yaml"
-    # Parse subdomain list for view rendering
-    subs = []
-    if tax_path.exists():
-        for m in re.finditer(r"^\s{2}([\w-]+):\s*(?:\n|$)", tax_path.read_text(encoding="utf-8"), flags=re.MULTILINE):
-            n = m.group(1)
-            if n not in ("subdomains", "version", "campaign"):
-                subs.append(n)
+    # Resolve vocab for view rendering
+    if args.doctype or args.singleton_audit:
+        # Doctype: parse doc_types
+        dt_path = camp / "doc_types.yaml"
+        if not dt_path.exists():
+            dt_path = _templates_root() / "doc_types.yaml"
+        subs = []
+        if dt_path.exists():
+            from taxonomy import parse_doc_types_blocks as _pdtb
+            subs = list(_pdtb(dt_path.read_text(encoding="utf-8")).keys())
+    else:
+        tax_path = camp / "taxonomy.yaml"
+        if not tax_path.exists():
+            tax_path = _templates_root() / "taxonomy.yaml"
+        # Parse subdomain list for view rendering
+        subs = []
+        if tax_path.exists():
+            for m in re.finditer(r"^\s{2}([\w-]+):\s*(?:\n|$)", tax_path.read_text(encoding="utf-8"), flags=re.MULTILINE):
+                n = m.group(1)
+                if n not in ("subdomains", "version", "campaign"):
+                    subs.append(n)
 
     store_root = Path(args.store)
     docs = list(store_root.rglob("*.md")) if store_root.exists() else []
@@ -66,36 +79,74 @@ def main():
     for doc in docs[:5000]:
         text = doc.read_text(encoding="utf-8")
         html_text = md_to_html(text)
-        # sidecars
+        # sidecars — handle both with_suffix and stem-based naming (store/ab/<hash>.md)
         judge = {}
-        jp = doc.with_suffix(".judge.json")
-        if jp.exists():
-            try:
-                judge = json.loads(jp.read_text(encoding="utf-8"))
-            except Exception:
-                pass
+        # try stem-based first, then with_suffix
+        for cand in [doc.parent / (doc.stem + ".judge.json"), doc.with_suffix(".judge.json")]:
+            if cand.exists():
+                try:
+                    judge = json.loads(cand.read_text(encoding="utf-8"))
+                    break
+                except Exception:
+                    pass
         retrieval = {}
-        rp = doc.with_suffix(".retrieval.json")
-        if rp.exists():
-            try:
-                retrieval = json.loads(rp.read_text(encoding="utf-8"))
-            except Exception:
-                pass
+        for cand in [doc.parent / (doc.stem + ".retrieval.json"), doc.with_suffix(".retrieval.json")]:
+            if cand.exists():
+                try:
+                    retrieval = json.loads(cand.read_text(encoding="utf-8"))
+                    break
+                except Exception:
+                    pass
+        # Meta for pruned note
+        meta = {}
+        for cand in [doc.parent / (doc.stem + ".meta.json"), doc.with_suffix(".meta.json")]:
+            if cand.exists():
+                try:
+                    meta = json.loads(cand.read_text(encoding="utf-8"))
+                    break
+                except Exception:
+                    pass
         bucket = judge.get("confidence_bucket", "NEEDS_HUMAN_VALIDATION")
         cls_map = {"SURE": "sure", "NEEDS_HUMAN_VALIDATION": "needs", "I_GUESSED": "guessed"}
-        tasks.append({
-            "data": {
-                "text_html": html_text,
-                "filename": doc.name,
-                "llm_primary": judge.get("primary_subdomain", ""),
-                "llm_secondary": ", ".join(judge.get("secondary_subdomains", [])),
-                "relation_type": judge.get("relation_type", "none"),
-                "confidence_bucket": bucket,
-                "confidence_class": cls_map.get(bucket, "needs"),
-                "candidates": ", ".join(c.get("subdomain","") for c in retrieval.get("candidates", [])),
-                "reasoning_brief": judge.get("reasoning_brief", ""),
-            }
-        })
+        if args.doctype or args.singleton_audit:
+            # Filter singleton audit: only docs with singleton_constraint
+            if args.singleton_audit and not judge.get("singleton_constraint"):
+                continue
+            if not args.singleton_audit and judge.get("singleton_constraint"):
+                # Exclude singleton from main doctype queue (they go to audit)
+                continue
+            pruned_note = f"pruned: {retrieval.get('pruned', False)}" if retrieval else ""
+            meta_line = f"Source: {meta.get('source_path','')} ext={meta.get('source_ext','')} lang={meta.get('original_language','')}" if meta else ""
+            # candidates may be under doc_type or subdomain
+            cands = retrieval.get("candidates", [])
+            cand_str = ", ".join(c.get("doc_type") or c.get("subdomain","") for c in cands)
+            tasks.append({
+                "data": {
+                    "text_html": html_text,
+                    "filename": doc.name,
+                    "doc_type": judge.get("doc_type", ""),
+                    "confidence_bucket": bucket,
+                    "confidence_class": cls_map.get(bucket, "needs"),
+                    "candidates": cand_str,
+                    "reasoning_brief": judge.get("reasoning_brief", ""),
+                    "pruned_note": pruned_note,
+                    "meta_line": meta_line,
+                }
+            })
+        else:
+            tasks.append({
+                "data": {
+                    "text_html": html_text,
+                    "filename": doc.name,
+                    "llm_primary": judge.get("primary_subdomain", ""),
+                    "llm_secondary": ", ".join(judge.get("secondary_subdomains", [])),
+                    "relation_type": judge.get("relation_type", "none"),
+                    "confidence_bucket": bucket,
+                    "confidence_class": cls_map.get(bucket, "needs"),
+                    "candidates": ", ".join(c.get("subdomain","") for c in retrieval.get("candidates", [])),
+                    "reasoning_brief": judge.get("reasoning_brief", ""),
+                }
+            })
 
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -106,18 +157,32 @@ def main():
 
     # Render view.xml with N choices if requested
     if args.view_out and subs:
-        tpl_path = _templates_root() / "label_studio" / "view.xml"
+        # Choose template based on task
+        if args.doctype:
+            tpl_path = _templates_root() / "label_studio" / "view_doctype.xml"
+        elif args.singleton_audit:
+            tpl_path = _templates_root() / "label_studio" / "view_singleton_audit.xml"
+        else:
+            tpl_path = _templates_root() / "label_studio" / "view.xml"
+        if not tpl_path.exists() and args.doctype:
+            # Fallback to generic view.xml and inject doc_type choices
+            tpl_path = _templates_root() / "label_studio" / "view.xml"
         if tpl_path.exists():
             tpl = tpl_path.read_text(encoding="utf-8")
             # Render N choices for variable-N (I1): replace placeholder Choice blocks
             rendered = tpl
-            for tag in ("primary", "secondary"):
+            # Try doc_type placeholder
+            if "<!-- CHOICES_PLACEHOLDER_doctype -->" in rendered:
+                rendered = rendered.replace("<!-- CHOICES_PLACEHOLDER_doctype -->", "\n".join(f'      <Choice value="{s}" />' for s in subs))
+            for tag in ("primary", "secondary", "doc_type"):
                 pat = re.compile(rf'(<Choices name="{tag}".*?>)(.*?)(</Choices>)', re.DOTALL)
-                choices_str = "\n".join(f'        <Choice value="{s}" />' for s in subs)
-                rendered = pat.sub(lambda m: f"{m.group(1)}\n{choices_str}\n      {m.group(3)}", rendered)
+                if pat.search(rendered):
+                    choices_str = "\n".join(f'        <Choice value="{s}" />' for s in subs)
+                    rendered = pat.sub(lambda m: f"{m.group(1)}\n{choices_str}\n      {m.group(3)}", rendered)
             Path(args.view_out).parent.mkdir(parents=True, exist_ok=True)
             Path(args.view_out).write_text(rendered, encoding="utf-8")
-            print(f"export: view.xml -> {args.view_out} (N={len(subs)} subs: {', '.join(subs)})")
+            kind = "doctype" if args.doctype else ("singleton_audit" if args.singleton_audit else "subdomain")
+            print(f"export: view.xml -> {args.view_out} (N={len(subs)} {kind}: {', '.join(subs)})")
     return 0
 
 

@@ -24,10 +24,7 @@ from __future__ import annotations
 
 import argparse
 import csv
-try:
-    from translation_common import read_csv_lines_skip_comments
-except ImportError:
-    from scripts.translation_common import read_csv_lines_skip_comments
+from .translate.translation_common import read_csv_lines_skip_comments
 import hashlib
 import json
 import sys

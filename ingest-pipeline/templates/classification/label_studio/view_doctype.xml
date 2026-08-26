@@ -1,0 +1,27 @@
+<View>
+  <Style>
+    .sure { background: #d4edda; padding: 8px; border-left: 4px solid #28a745; }
+    .needs { background: #fff3cd; padding: 8px; border-left: 4px solid #ffc107; }
+    .guessed { background: #f8d7da; padding: 8px; border-left: 4px solid #dc3545; }
+    .meta { font-family: monospace; color: #666; font-size: 12px; }
+  </Style>
+  <Header value="Document Type Review — $filename" />
+  <View style="padding: 12px; border: 1px solid #ddd;">
+    <Text name="pruned_note" value="$pruned_note" />
+    <Text name="meta_line" value="$meta_line" />
+    <View className="$confidence_class">
+      <Text name="confidence_bucket" value="Bucket: $confidence_bucket" />
+      <Text name="reasoning_brief" value="$reasoning_brief" />
+    </View>
+    <HyperText name="text_html" value="$text_html" />
+    <Choices name="doc_type" toName="text_html" choice="single" required="true" showInLine="true">
+      <!-- CHOICES_PLACEHOLDER_doctype -->
+    </Choices>
+    <Choices name="confidence_bucket_choice" toName="text_html" choice="single">
+      <Choice value="SURE" />
+      <Choice value="NEEDS_HUMAN_VALIDATION" />
+      <Choice value="I_GUESSED" />
+    </Choices>
+    <TextArea name="review_comment" toName="text_html" placeholder="Flag glossary/type fix if needed" />
+  </View>
+</View>

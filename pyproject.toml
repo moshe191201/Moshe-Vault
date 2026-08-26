@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "second-brain-vault-framework"
-version = "0.1.0"
+version = "0.2.1"
 description = "Tool + payload that builds, lints, and upgrades AI-operable knowledge vaults — offline and air-gap ready."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -17,7 +17,6 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Text Processing :: Markup :: Markdown",
 ]
-# Pure stdlib on purpose: the CLI must run inside an air gap with nothing installed.
 dependencies = []
 
 [project.optional-dependencies]

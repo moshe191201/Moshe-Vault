@@ -20,12 +20,13 @@ judge:
   temperature: 0.0
   # reasoning_brief: no length limit — thorough evidence → subdomain mapping
   few_shot_per_topk: 3   # examples per candidate subdomain (from taxonomy)
+  gap_threshold: 0.08    # close-call threshold: top1-top2 < gap → NEEDS_HUMAN_VALIDATION
 
 confidence:
   buckets: [SURE, NEEDS_HUMAN_VALIDATION, I_GUESSED]
   rubric_anchors:
-    SURE: "explicit subdomain name or glossary-mapped form appears and is the primary focus; no second subdomain as comparator"
-    NEEDS_HUMAN_VALIDATION: "implicit reference requiring glossary, or doc compares/relates 2+ subdomains, or top-2 candidates close"
+    SURE: "explicit subdomain name or glossary-mapped form appears and is the primary focus; no second subdomain as comparator / metadata consistent"
+    NEEDS_HUMAN_VALIDATION: "implicit reference requiring glossary, or doc compares/relates 2+ subdomains, or top-2 candidates close / metadata ambiguous"
     I_GUESSED: "evidence thin/generic/contradictory; least-bad pick among candidates"
 
 relation:
@@ -34,6 +35,12 @@ relation:
 
 review:
   stratified_per_subdomain: 8
+  stratified_per_doctype: 8
   disagreement_band: 0.10   # semantics: close candidates trigger review
   spot_check_sure: 20       # audit sample of SURE per batch
+  singleton_audit: 10       # audit sample of singleton-pruned docs
   audit_target_sure_accuracy: 0.90
+
+routing_defaults:
+  internal_hebrew: {languages: [he], sources: [internal]}
+  external_english: {languages: [en], sources: [external]}

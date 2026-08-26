@@ -47,16 +47,8 @@ def _split_table_cells(row: str) -> list[str]:
     so a bare | scan is safe. Escaped \\| is preserved.
     Leading/trailing empties from outer pipes are dropped.
     """
-    try:
-        from translation_common import split_table_cells as _shared
-        return _shared(row)
-    except ImportError:
-        try:
-            from scripts.translation_common import split_table_cells as _shared
-            return _shared(row)
-        except ImportError:
-            import warnings
-            warnings.warn("translation_common.split_table_cells not found — using inline fallback (drift risk)", stacklevel=2)
+    from .translation_common import split_table_cells as _shared
+    return _shared(row)
     parts: list[str] = []
     cur = ""
     i = 0

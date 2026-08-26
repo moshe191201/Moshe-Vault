@@ -20,54 +20,15 @@ import re
 from pathlib import Path
 import sys
 
-# Reuse frontmatter parser without importing package (keeps script runnable in gap without install).
-# Duplicated minimal logic from core.py to avoid dependency.
-
-FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n", re.DOTALL)
-
-
-def parse_frontmatter(text: str):
-    if not text.startswith("---"):
-        return {}, text
-    lines = text.splitlines()
-    end = next((i for i in range(1, len(lines)) if lines[i].strip() == "---"), None)
-    if end is None:
-        return {}, text
-    fm: dict = {}
-    cur = None
-    for raw in lines[1:end]:
-        if re.match(r"^\s*-\s+", raw) and cur is not None:
-            fm.setdefault(cur, [])
-            if isinstance(fm[cur], list):
-                fm[cur].append(raw.strip()[2:].strip().strip('"'))
-            continue
-        m = re.match(r"^([A-Za-z0-9_-]+):\s*(.*)$", raw)
-        if m:
-            k, v = m.group(1), m.group(2).strip()
-            cur = k
-            if v == "":
-                fm[k] = []
-            else:
-                fm[k] = v.strip('"')
-    body = "\n".join(lines[end + 1:])
-    return fm, body
-
-
-def estimate_tokens(text: str) -> int:
-    return max(1, len(text) // 4)
-
-
-def extract_headers(body: str) -> str:
-    # Skip code fences
-    out_lines = []
-    in_fence = False
-    for line in body.splitlines():
-        if line.strip().startswith("```"):
-            in_fence = not in_fence
-            continue
-        if not in_fence and line.lstrip().startswith("#"):
-            out_lines.append(line)
-    return "\n".join(out_lines)
+import importlib.util as _ilu_chunk
+_cc_chunk_path = Path(__file__).resolve().parent / "classify_common.py"
+_spec_chunk = _ilu_chunk.spec_from_file_location("_classify_common_chunk", _cc_chunk_path)
+_mod_chunk = _ilu_chunk.module_from_spec(_spec_chunk)
+_spec_chunk.loader.exec_module(_mod_chunk)  # type: ignore
+parse_frontmatter = _mod_chunk.parse_frontmatter
+estimate_tokens = _mod_chunk.estimate_tokens
+extract_headers = _mod_chunk.extract_headers
+atomic_write = _mod_chunk.atomic_write
 
 
 def chunk_first_window(body: str, window: int, include_outline: bool) -> str:
@@ -113,13 +74,6 @@ def chunk_header_aware(body: str, window: int) -> str:
 
 def content_hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
-
-
-def atomic_write(path: Path, text: str):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(text, encoding="utf-8")
-    tmp.rename(path)
 
 
 def main():
@@ -188,11 +142,21 @@ def main():
 
         h = content_hash(text)
         doc_id = f"{src.stem}__{h[:8]}"
+        # Derive source metadata for doc-type pruning (extension + original language)
+        # Extension from path; language from frontmatter if present, else empty (pruner treats empty as 'any' when no hard gate)
+        source_ext = src.suffix.lstrip(".").lower()
+        # Try to detect original language: frontmatter original_language or language, else empty
+        original_language = str(fm.get("original_language", fm.get("language", ""))).strip()
+        # Also check for 'lang' shorthand
+        if not original_language:
+            original_language = str(fm.get("lang", "")).strip()
         out_text = (
             f"---\n"
             f'source_doc_id: "{doc_id}"\n'
             f'source_hash: "{h}"\n'
             f'source_path: "{src.as_posix()}"\n'
+            f'source_ext: "{source_ext}"\n'
+            f'original_language: "{original_language}"\n'
             f'chunk_policy_version: "1"\n'
             f'chunk_mode: "{mode}"\n'
             f'chunk_window: {window}\n'
@@ -202,10 +166,20 @@ def main():
         )
         # Content-addressed path: store/ab/abcdef...md
         out_path = store_root / h[:2] / f"{h}.md"
+        meta_path = out_path.with_suffix(".meta.json")
         if args.dry_run:
             print(f"[dry-run] {src} -> {out_path} ({len(chunk_body)} chars, ~{estimate_tokens(chunk_body)} tokens, mode={mode})")
         else:
             atomic_write(out_path, out_text)
+            # Sidecar for doc-type pruner
+            meta = {
+                "source_path": src.as_posix(),
+                "source_ext": source_ext,
+                "original_language": original_language,
+                "title": title,
+                "source_hash": h,
+            }
+            atomic_write(meta_path, json.dumps(meta, indent=2))
             print(f"chunk: {src} -> {out_path} (mode={mode}, window={window})")
     return 0
 

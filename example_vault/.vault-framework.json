@@ -1,9 +1,9 @@
 {
-  "framework_version": "0.1.0",
+  "framework_version": "0.2.1",
   "vault_name": "Example",
-  "installed_at": "2026-08-19T14:16:49",
+  "installed_at": "2026-08-18T21:36:13",
   "manifest": {
-    "framework_version": "0.1.0",
+    "framework_version": "0.2.1",
     "owned_paths": [
       "CLAUDE.md",
       "instructions.md",

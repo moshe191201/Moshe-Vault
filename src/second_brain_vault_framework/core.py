@@ -1,4 +1,4 @@
-"""Vault engine — importable, pure stdlib.
+"""Vault engine — importable.
 
 The authoritative implementation of every `vault` subcommand. A vault carries a
 thin `scripts/vault.py` shim that imports this module, so a vault's behavior can

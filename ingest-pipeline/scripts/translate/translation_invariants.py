@@ -394,4 +394,4 @@ def verify_global_order(source_text: str, invariants: dict, translation: str) ->
 
 
 # Person-name helpers — single source in translation_common.py
-from translation_common import load_codenames, load_person_names  # re-export for tmod import
+from .translation_common import load_codenames, load_person_names  # re-export for tmod import

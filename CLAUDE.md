@@ -7,7 +7,7 @@ living documentation.
 | | **second_brain_vault_framework** | **ingest-pipeline** |
 |---|---|---|
 | what | `vault` CLI + the payload laid into vaults | 4-stage Hebrew document pipeline |
-| deps | **pure stdlib, always** | ~11 packages, `ingest-pipeline/requirements.txt` |
+| deps | `pyproject.toml` | `ingest-pipeline/requirements.txt` (~11 packages) |
 | platform | cross-platform | **Windows only** (D1) |
 | tests | `tests/` | `ingest-pipeline/tests/` |
 | CI lane | `unit` | `pipeline-unit` |
@@ -32,7 +32,7 @@ src/second_brain_vault_framework/  the pip package
   ├── cli.py                       `vault` entry point (argparse only)
   ├── manifest.json                what the framework owns in a vault + user-zone markers
   └── payload/                     the files laid down into a vault
-tests/                             stdlib unittest suite for the package
+tests/                             unittest suite for the package
 ingest-pipeline/                   the other product — no framework imports
   ├── scripts/                     stages 3-6
   ├── tests/                       its own suite, its own deps
@@ -78,10 +78,6 @@ skip dot-directories; `core.payload_path_for()` is the only place that translati
 
 ## Conventions
 
-- **Pure stdlib — the framework only.** The `vault` CLI must run inside an air gap with
-  nothing installed. No runtime deps in `pyproject.toml`, ever. Docs/build extras are fine.
-  **This rule does not apply to `ingest-pipeline/`**, which legitimately needs ~11 packages;
-  they are declared in `ingest-pipeline/requirements.txt` and never in `pyproject.toml`.
 - **Fail closed.** `vault check` exits non-zero on any finding. Never soften it to a warning.
 - **`tests/VAULT_TESTS.md` in a vault is never a qmd collection** — gold answers must not
   contaminate retrieval. `core.cmd_register` deliberately omits it.
@@ -107,6 +103,4 @@ cleanly without `YAP_DIR`):
 cd ingest-pipeline && python -m unittest discover -s tests
 ```
 
-A change touching both products has to pass both. The framework suite must keep passing
-with **nothing** installed — if it starts needing a package, something leaked across the
-boundary.
+A change touching both products has to pass both.
