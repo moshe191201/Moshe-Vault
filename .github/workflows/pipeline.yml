@@ -54,10 +54,19 @@ jobs:
         run: |
           for s in convert_to_md.py extract_domain_terms.py translate.py \
                    classify/judge.py classify/validate.py \
-                   classify/retrieve.py classify/export_label_studio.py; do
+                   classify/retrieve.py classify/export_label_studio.py \
+                   translate/check_glossary.py translate/glossary_translate.py \
+                   translate/translation_qa.py translate/translation_reviewer.py; do
             printf '  %-38s' "$s"
             python "scripts/$s" --help > /dev/null 2>&1 && echo OK || { echo FAILED; exit 1; }
           done
+
+      - name: Glossary gate — reject invalid approved translations
+        shell: bash
+        run: |
+          set -e
+          echo "Checking data/domain_terms/glossary.json"
+          python scripts/translate/check_glossary.py data/domain_terms/glossary.json
 
   linux:
     name: tests (ubuntu, py3.12) — advisory
