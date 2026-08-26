@@ -80,7 +80,11 @@ def check_glossary(path: Path) -> tuple[bool, list[str]]:
                 try:
                     from .translation_common import _filter_translations as _flt
                 except ImportError:
-                    from translation_common import _filter_translations as _flt
+                    try:
+                        from translation_common import _filter_translations as _flt
+                    except ImportError:
+                        sys.path.insert(0, str(Path(__file__).parent))
+                        from translation_common import _filter_translations as _flt
                 valid = _flt(trans)
                 if status == "approved" and not valid:
                     errors.append(f"row {i} term={term!r}: approved row has no valid translations after filtering (all options were invalid stubs)")
@@ -94,7 +98,14 @@ def check_glossary(path: Path) -> tuple[bool, list[str]]:
         errors.extend(unapproved)
 
     # Gate glossary collisions before any work starts
-    from .translation_common import check_glossary_collisions
+    try:
+        from .translation_common import check_glossary_collisions
+    except ImportError:
+        try:
+            from translation_common import check_glossary_collisions
+        except ImportError:
+            sys.path.insert(0, str(Path(__file__).parent))
+            from translation_common import check_glossary_collisions
     try:
         check_glossary_collisions(rows if isinstance(rows, list) else [])
     except RuntimeError as e:
