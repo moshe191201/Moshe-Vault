@@ -43,9 +43,15 @@ except ImportError:
         _HAS_COMMON_FILTER = True
     except ImportError:
         # Fallback via file path — use canonical implementation, not weaker shim
-        sys.path.insert(0, str(Path(__file__).parent))
-        from translation_common import _valid_translation_option, _filter_translations
-        _HAS_COMMON_FILTER = True
+        if "translate.translation_common" in sys.modules:
+            _valid_translation_option = sys.modules["translate.translation_common"]._valid_translation_option
+            _filter_translations = sys.modules["translate.translation_common"]._filter_translations
+            _HAS_COMMON_FILTER = True
+        else:
+            if str(Path(__file__).parent) not in sys.path:
+                sys.path.insert(0, str(Path(__file__).parent))
+            from translation_common import _valid_translation_option, _filter_translations
+            _HAS_COMMON_FILTER = True
 
 # Shared helpers (deduped) — translation_common is single source of truth
 try:
@@ -56,9 +62,16 @@ except ImportError:
         from .translation_common import read_csv_lines_skip_comments as _shared_read_csv, strip_frontmatter as _shared_strip_fm, split_table_cells as _shared_split_cells
         _USE_SHARED = True
     except ImportError:
-        sys.path.insert(0, str(Path(__file__).parent))
-        from translation_common import read_csv_lines_skip_comments as _shared_read_csv, strip_frontmatter as _shared_strip_fm, split_table_cells as _shared_split_cells
-        _USE_SHARED = True
+        if "translate.translation_common" in sys.modules:
+            _shared_read_csv = sys.modules["translate.translation_common"].read_csv_lines_skip_comments
+            _shared_strip_fm = sys.modules["translate.translation_common"].strip_frontmatter
+            _shared_split_cells = sys.modules["translate.translation_common"].split_table_cells
+            _USE_SHARED = True
+        else:
+            if str(Path(__file__).parent) not in sys.path:
+                sys.path.insert(0, str(Path(__file__).parent))
+            from translation_common import read_csv_lines_skip_comments as _shared_read_csv, strip_frontmatter as _shared_strip_fm, split_table_cells as _shared_split_cells
+            _USE_SHARED = True
 
 HEBREW_RE = re.compile(r"[א-ת]")
 HE_MARKER_RE = re.compile(r"⟦he:[^⟧]+⟧")

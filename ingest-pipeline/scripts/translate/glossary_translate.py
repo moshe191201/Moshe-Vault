@@ -214,7 +214,8 @@ def main(argv=None):
             try:
                 from translation_common import strip_csv_comments
             except ImportError:
-                sys.path.insert(0, str(Path(__file__).parent))
+                if str(Path(__file__).parent) not in sys.path:
+                    sys.path.insert(0, str(Path(__file__).parent))
                 from translation_common import strip_csv_comments
     seed_rows: list[dict] = []
     text = input_csv.read_text(encoding="utf-8")
@@ -260,7 +261,8 @@ def main(argv=None):
             try:
                 from translation_common import _filter_translations as _gloss_filter
             except ImportError:
-                sys.path.insert(0, str(Path(__file__).parent))
+                if str(Path(__file__).parent) not in sys.path:
+                    sys.path.insert(0, str(Path(__file__).parent))
                 from translation_common import _filter_translations as _gloss_filter
     out_rows: list[dict] = []
     for row in seed_rows:
